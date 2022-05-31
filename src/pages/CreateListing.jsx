@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { useNavigate } from 'react-router-dom'
 import Spinner from '../components/Spinner'
+import { toast } from 'react-toastify'
 
 function CreateListing() {
     const [geolocationEnabled, setGeolocationEnabled] = useState(true)
@@ -59,9 +60,52 @@ function CreateListing() {
         // eslint-disable-next-line
     }, [isMounted])
     
-    const onSubmit = (e) => {
+    const onSubmit = async (e) => {
         e.preventDefault()
-        console.log(formData)
+        setLoading(true)
+        
+        if (discountedPrice >= regularPrice) {
+            setLoading(false)
+            toast.error("Discounted price needs to be less than regular price")
+            return
+        }
+
+        if (images.length > 6) {
+            setLoading(false)
+            toast.error("Max 6 images")
+            return
+        }
+
+        let geolocation = {}
+        let location
+
+        if (geolocationEnabled) {
+            const API_KEY = process.env.REACT_APP_POSITION_STACK_API_KEY
+            const response = await fetch(
+                `http://api.positionstack.com/v1/forward?access_key=${API_KEY}&query=${address}`
+            );
+            
+            const data = await response.json();
+            
+            geolocation.lat = data.data[0]?.latitude ?? 0
+            geolocation.lng = data.data[0]?.longitude ?? 0
+            
+            location = data.data.length === 0 
+                ? undefined 
+                : data.data[0]?.name
+            
+                if (location === undefined || location.includes('undefined')) {
+                setLoading(false)
+                toast.error('Please enter a correct address')
+                return
+            }
+        } else {
+            geolocation.lat = latitude
+            geolocation.lng = longitude
+            location = address
+        }
+
+        setLoading(false)
     }
 
     const onMutate = (e) => {
